@@ -79,6 +79,7 @@
 // ROS service includes
 #include <cob_srvs/Trigger.h>
 #include <cob_srvs/SetOperationMode.h>
+#include <pr2_controllers_msgs/QueryTrajectoryState.h>
 
 // own includes
 #include <schunk_powercube_chain/PowerCubeCtrl.h>
@@ -108,6 +109,7 @@ public:
   /// declaration of service servers
   ros::ServiceServer srvServer_Init_;
   ros::ServiceServer srvServer_SetOperationMode_;
+  ros::ServiceServer srvServer_QueryState_;
   ros::ServiceServer srvServer_Stop_;
   ros::ServiceServer srvServer_Recover_;
 
@@ -144,6 +146,7 @@ public:
     srvServer_Stop_ = n_.advertiseService("stop", &PowerCubeChainNode::srvCallback_Stop, this);
     srvServer_Recover_ = n_.advertiseService("recover", &PowerCubeChainNode::srvCallback_Recover, this);
     srvServer_SetOperationMode_ = n_.advertiseService("set_operation_mode", &PowerCubeChainNode::srvCallback_SetOperationMode, this);
+    srvServer_QueryState_ = n_.advertiseService("query_state", &PowerCubeChainNode::srvCallback_QueryState, this);
 
     initialized_ = false;
     stopped_ = true;
@@ -576,6 +579,35 @@ public:
 		res.success.data = true;
 	}
 	return true;
+  }
+
+  /*!
+  * \brief Executes the service callback for QueryState.
+  *
+  * Returns the current joint state on request.
+  * \param req Service request
+  * \param res Service response
+  */
+  bool srvCallback_QueryState(pr2_controllers_msgs::QueryTrajectoryState::Request &req, pr2_controllers_msgs::QueryTrajectoryState::Response &resp)
+  {
+
+    if (!initialized_) {
+  	  resp.name = pc_params_->GetJointNames();
+      resp.position = std::vector<double>(pc_params_->GetDOF(), 0.0);
+  	  resp.velocity = std::vector<double>(pc_params_->GetDOF(), 0.0);
+  	  resp.acceleration = std::vector<double>(pc_params_->GetDOF(), 0.0);
+
+      return true;
+    }
+
+  	pc_ctrl_->updateStates();
+
+  	resp.name = pc_params_->GetJointNames();
+  	resp.position = pc_ctrl_->getPositions();
+  	resp.velocity = pc_ctrl_->getVelocities();
+  	resp.acceleration = std::vector<double>(pc_params_->GetDOF(), 0.0);
+
+  	return true;
   }
 
   /*!
